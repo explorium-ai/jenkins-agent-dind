@@ -126,8 +126,8 @@ RUN \
     ${CURL} https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -; \
     sudo add-apt-repository --no-update -y "deb https://dl.yarnpkg.com/debian/ stable main"; \
     # jfrog \
-    ${CURL} https://releases.jfrog.io/artifactory/api/gpg/key/public | sudo apt-key add -; \
-    sudo add-apt-repository --no-update -y "deb https://releases.jfrog.io/artifactory/jfrog-debs xenial contrib"; \
+    # ${CURL} https://releases.jfrog.io/artifactory/api/gpg/key/public | sudo apt-key add -; \
+    # sudo add-apt-repository --no-update -y "deb https://releases.jfrog.io/artifactory/jfrog-debs xenial contrib"; \
     # git \
     sudo add-apt-repository --no-update -y ppa:git-core/ppa; \
     # yq \
@@ -160,8 +160,8 @@ RUN \
         nodejs \
         yarn \
         kubectl \
-        jfrog-cli \
-        jfrog-cli-v2-jf \
+        # jfrog-cli \
+        # jfrog-cli-v2-jf \
         shellcheck \
         maven \
         ant \
