@@ -253,7 +253,7 @@ RUN \
     # install helm 3 \
     ${CURL} https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | sudo -E bash -; \
     # install s6-overlay \
-    export archorg=$(arch | sed 's/ /_/g'); \
+    export archorg=$(arch | tr -s ' ' | tr ' ' '_'); \
     ${CURL} -o /tmp/s6-overlay-installer https://github.com/just-containers/s6-overlay/releases/download/v2.2.0.1/s6-overlay-${archorg}-installer; \
     chmod +x /tmp/s6-overlay-installer; \
     sudo /tmp/s6-overlay-installer /; \
