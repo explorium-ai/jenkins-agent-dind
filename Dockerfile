@@ -188,7 +188,7 @@ RUN \
         docker-ce \
         docker-ce-cli \
         containerd.io \
-        docker-buildx-plugin \
+        # docker-buildx-plugin \
         docker-compose-plugin; \
     ${SUDO_APT_GET} autoremove -yq; \
     ${SUDO_CLEAN_APT}; \
