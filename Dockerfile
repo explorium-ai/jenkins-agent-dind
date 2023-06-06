@@ -74,7 +74,7 @@ ENV AGENT_WORKDIR="${HOME}/agent" \
 
 # create non-root user
 RUN group="${NON_ROOT_USER}"; \
-    arch=$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/) \
+    export arch=$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/) \
     export JAVA_HOME="/usr/lib/jvm/temurin-11-jdk-${arch}" \
     uid="1000"; \
     gid="${uid}"; \
@@ -105,7 +105,7 @@ WORKDIR "${AGENT_WORKDIR}"
 VOLUME "${AGENT_WORKDIR}"
 
 RUN \
-    arch=$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/) \
+    export arch=$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/) \
     export JAVA_HOME="/usr/lib/jvm/temurin-11-jdk-${arch}" \
     # ensure jenkins-agent directory exists \
     mkdir -p "${AGENT_WORKDIR}"; \
