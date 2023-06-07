@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 FROM buildpack-deps:focal AS base
-ARG TARGETPLATFORM
+ARG TARGETARCH
 ARG TARGETARCH
 # set bash as the default interpreter for the build with:
 # -e: exits on error, so we can use colon as line separator
@@ -76,7 +76,7 @@ ENV AGENT_WORKDIR="${HOME}/agent" \
 
 # create non-root user
 RUN group="${NON_ROOT_USER}"; \
-    export JAVA_HOME="/usr/lib/jvm/temurin-11-jdk-${TARGETPLATFORM}"; \
+    export JAVA_HOME="/usr/lib/jvm/temurin-11-jdk-${TARGETARCH}"; \
     uid="1000"; \
     gid="${uid}"; \
     groupadd -g "${gid}" "${group}"; \
@@ -106,7 +106,7 @@ WORKDIR "${AGENT_WORKDIR}"
 VOLUME "${AGENT_WORKDIR}"
 
 RUN \
-    export JAVA_HOME="/usr/lib/jvm/temurin-11-jdk-${TARGETPLATFORM}"; \
+    export JAVA_HOME="/usr/lib/jvm/temurin-11-jdk-${TARGETARCH}"; \
     # ensure jenkins-agent directory exists \
     mkdir -p "${AGENT_WORKDIR}"; \
     ## apt \
@@ -196,7 +196,7 @@ RUN \
     sudo usermod -aG docker "${NON_ROOT_USER}"; \
     ## setup docker-switch (docker-compose v1 compatibility) \
     version=$(basename "$(${CURL} -o /dev/null -w "%{url_effective}" https://github.com/docker/compose-switch/releases/latest)"); \
-    sudo ${CURL} --create-dirs -o "/usr/local/bin/docker-compose" "https://github.com/docker/compose-switch/releases/download/${version}/docker-compose-linux-${TARGETPLATFORM}"; \
+    sudo ${CURL} --create-dirs -o "/usr/local/bin/docker-compose" "https://github.com/docker/compose-switch/releases/download/${version}/docker-compose-$(uname -s)-${TARGETARCH}"; \
     sudo chmod +x /usr/local/bin/docker-compose; \
     ## dind \
     # set up subuid/subgid so that "--userns-remap=default" works out-of-the-box \
@@ -244,7 +244,7 @@ RUN \
     ## miscellaneous \
     # install kind \
     version=$(basename "$(${CURL} -o /dev/null -w "%{url_effective}" https://github.com/kubernetes-sigs/kind/releases/latest)"); \
-    sudo ${CURL} -o /usr/local/bin/kind "https://github.com/kubernetes-sigs/kind/releases/download/${version}/kind-$(uname)-${TARGETPLATFORM}"; \
+    sudo ${CURL} -o /usr/local/bin/kind "https://github.com/kubernetes-sigs/kind/releases/download/${version}/kind-$(uname)-${TARGETARCH}"; \
     sudo chmod +x /usr/local/bin/kind; \
     # install hadolint \
     version=$(basename "$(${CURL} -o /dev/null -w "%{url_effective}" https://github.com/hadolint/hadolint/releases/latest)"); \
@@ -261,7 +261,7 @@ RUN \
     # fix sshd not starting \
     sudo mkdir -p /run/sshd; \
     # install fixuid \
-    curl -fsSL https://github.com/boxboat/fixuid/releases/download/v0.5.1/fixuid-0.5.1-linux-${TARGETPLATFORM}.tar.gz | sudo tar -C /usr/local/bin -xzf -; \
+    curl -fsSL https://github.com/boxboat/fixuid/releases/download/v0.5.1/fixuid-0.5.1-linux-${TARGETARCH}.tar.gz | sudo tar -C /usr/local/bin -xzf -; \
     sudo chown root:root /usr/local/bin/fixuid;\
     sudo chmod 4755 /usr/local/bin/fixuid; \
     sudo mkdir -p /etc/fixuid; \
