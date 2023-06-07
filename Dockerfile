@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM buildpack-deps:focal AS base
 
 # set bash as the default interpreter for the build with:
