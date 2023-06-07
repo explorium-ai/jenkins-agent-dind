@@ -74,8 +74,7 @@ ENV AGENT_WORKDIR="${HOME}/agent" \
 
 # create non-root user
 RUN group="${NON_ROOT_USER}"; \
-    export arch=$(arch | sed s/aarch64/arm64/ | sed s/x86_64/amd64/); \
-    export JAVA_HOME="/usr/lib/jvm/temurin-11-jdk-${arch}"; \
+    export JAVA_HOME="/usr/lib/jvm/temurin-11-jdk-${TARGETARCH}"; \
     uid="1000"; \
     gid="${uid}"; \
     groupadd -g "${gid}" "${group}"; \
@@ -104,9 +103,17 @@ WORKDIR "${AGENT_WORKDIR}"
 
 VOLUME "${AGENT_WORKDIR}"
 
+ARG S6_OVERLAY_VERSION="v3.1.3.0"
+RUN wget "https://github.com/just-containers/s6-overlay/releases/download/${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" -O "/tmp/s6-overlay-noarch.tar.xz" && \
+    tar -C / -Jxpf "/tmp/s6-overlay-noarch.tar.xz" && \
+    rm -f "/tmp/s6-overlay-noarch.tar.xz"
+RUN [ "${TARGETARCH}" == "arm64" ] && FILE="s6-overlay-aarch64.tar.xz" || FILE="s6-overlay-x86_64.tar.xz"; \
+    wget "https://github.com/just-containers/s6-overlay/releases/download/${S6_OVERLAY_VERSION}/${FILE}" -O "/tmp/${FILE}" && \
+    tar -C / -Jxpf "/tmp/${FILE}" && \
+    rm -f "/tmp/${FILE}"
+
 RUN \
-    export arch=$(arch | sed s/aarch64/arm64/ | sed s/x86_64/amd64/); \
-    export JAVA_HOME="/usr/lib/jvm/temurin-11-jdk-${arch}"; \
+    export JAVA_HOME="/usr/lib/jvm/temurin-11-jdk-${TARGETARCH}"; \
     # ensure jenkins-agent directory exists \
     mkdir -p "${AGENT_WORKDIR}"; \
     ## apt \
@@ -196,7 +203,7 @@ RUN \
     sudo usermod -aG docker "${NON_ROOT_USER}"; \
     ## setup docker-switch (docker-compose v1 compatibility) \
     version=$(basename "$(${CURL} -o /dev/null -w "%{url_effective}" https://github.com/docker/compose-switch/releases/latest)"); \
-    sudo ${CURL} --create-dirs -o "/usr/local/bin/docker-compose" "https://github.com/docker/compose-switch/releases/download/${version}/docker-compose-$(uname -s)-${arch}"; \
+    sudo ${CURL} --create-dirs -o "/usr/local/bin/docker-compose" "https://github.com/docker/compose-switch/releases/download/${version}/docker-compose-$(uname -s)-${TARGETARCH}"; \
     sudo chmod +x /usr/local/bin/docker-compose; \
     ## dind \
     # set up subuid/subgid so that "--userns-remap=default" works out-of-the-box \
@@ -244,7 +251,7 @@ RUN \
     ## miscellaneous \
     # install kind \
     version=$(basename "$(${CURL} -o /dev/null -w "%{url_effective}" https://github.com/kubernetes-sigs/kind/releases/latest)"); \
-    sudo ${CURL} -o /usr/local/bin/kind "https://github.com/kubernetes-sigs/kind/releases/download/${version}/kind-$(uname)-${arch}"; \
+    sudo ${CURL} -o /usr/local/bin/kind "https://github.com/kubernetes-sigs/kind/releases/download/${version}/kind-$(uname)-${TARGETARCH}"; \
     sudo chmod +x /usr/local/bin/kind; \
     # install hadolint \
     version=$(basename "$(${CURL} -o /dev/null -w "%{url_effective}" https://github.com/hadolint/hadolint/releases/latest)"); \
@@ -253,15 +260,14 @@ RUN \
     # install helm 3 \
     ${CURL} https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | sudo -E bash -; \
     # install s6-overlay \
-    export archorg=$(arch | tr -s ' ' | tr ' ' '_'); \
-    ${CURL} -o /tmp/s6-overlay-installer https://github.com/just-containers/s6-overlay/releases/download/v2.2.0.1/s6-overlay-${archorg}-installer; \
-    chmod +x /tmp/s6-overlay-installer; \
-    sudo /tmp/s6-overlay-installer /; \
-    rm -f /tmp/s6-overlay-installer; \
+    # ${CURL} -o /tmp/s6-overlay-installer https://github.com/just-containers/s6-overlay/releases/download/v2.2.0.1/s6-overlay-${archorg}-installer; \
+    # chmod +x /tmp/s6-overlay-installer; \
+    # sudo /tmp/s6-overlay-installer /; \
+    # rm -f /tmp/s6-overlay-installer; \
     # fix sshd not starting \
     sudo mkdir -p /run/sshd; \
     # install fixuid \
-    curl -fsSL https://github.com/boxboat/fixuid/releases/download/v0.5.1/fixuid-0.5.1-linux-${arch}.tar.gz | sudo tar -C /usr/local/bin -xzf -; \
+    curl -fsSL https://github.com/boxboat/fixuid/releases/download/v0.5.1/fixuid-0.5.1-linux-${TARGETARCH}.tar.gz | sudo tar -C /usr/local/bin -xzf -; \
     sudo chown root:root /usr/local/bin/fixuid;\
     sudo chmod 4755 /usr/local/bin/fixuid; \
     sudo mkdir -p /etc/fixuid; \
