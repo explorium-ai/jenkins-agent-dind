@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 FROM buildpack-deps:focal AS base
 ARG TARGETPLATFORM
+ARG TARGETARCH
 # set bash as the default interpreter for the build with:
 # -e: exits on error, so we can use colon as line separator
 # -u: throw error on variable unset
@@ -103,15 +104,6 @@ USER "${NON_ROOT_USER}:${NON_ROOT_USER}"
 WORKDIR "${AGENT_WORKDIR}"
 
 VOLUME "${AGENT_WORKDIR}"
-
-ARG S6_OVERLAY_VERSION="v3.1.3.0"
-RUN wget "https://github.com/just-containers/s6-overlay/releases/download/${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" -O "/tmp/s6-overlay-noarch.tar.xz" && \
-    tar -C / -Jxpf "/tmp/s6-overlay-noarch.tar.xz" && \
-    rm -f "/tmp/s6-overlay-noarch.tar.xz"
-RUN [ "${TARGETPLATFORM}" == "arm64" ] && FILE="s6-overlay-aarch64.tar.xz" || FILE="s6-overlay-x86_64.tar.xz"; \
-    wget "https://github.com/just-containers/s6-overlay/releases/download/${S6_OVERLAY_VERSION}/${FILE}" -O "/tmp/${FILE}" && \
-    tar -C / -Jxpf "/tmp/${FILE}" && \
-    rm -f "/tmp/${FILE}"
 
 RUN \
     export JAVA_HOME="/usr/lib/jvm/temurin-11-jdk-${TARGETPLATFORM}"; \
@@ -261,10 +253,11 @@ RUN \
     # install helm 3 \
     ${CURL} https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | sudo -E bash -; \
     # install s6-overlay \
-    # ${CURL} -o /tmp/s6-overlay-installer https://github.com/just-containers/s6-overlay/releases/download/v2.2.0.1/s6-overlay-${archorg}-installer; \
-    # chmod +x /tmp/s6-overlay-installer; \
-    # sudo /tmp/s6-overlay-installer /; \
-    # rm -f /tmp/s6-overlay-installer; \
+    [ "${TARGETARCH}" == "arm64" ] && FILE="s6-overlay-aarch64-installer" || FILE="s6-overlay-x86-installer"; \
+    ${CURL} -o /tmp/s6-overlay-installer https://github.com/just-containers/s6-overlay/releases/download/v2.2.0.1/${FILE}; \
+    chmod +x /tmp/s6-overlay-installer; \
+    sudo /tmp/s6-overlay-installer /; \
+    rm -f /tmp/s6-overlay-installer; \
     # fix sshd not starting \
     sudo mkdir -p /run/sshd; \
     # install fixuid \
