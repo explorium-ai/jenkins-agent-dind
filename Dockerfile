@@ -196,7 +196,7 @@ RUN \
     sudo usermod -aG docker "${NON_ROOT_USER}"; \
     ## setup docker-switch (docker-compose v1 compatibility) \
     version=$(basename "$(${CURL} -o /dev/null -w "%{url_effective}" https://github.com/docker/compose-switch/releases/latest)"); \
-    sudo ${CURL} --create-dirs -o "/usr/local/bin/docker-compose" "https://github.com/docker/compose-switch/releases/download/${version}/docker-compose-$(uname -s)-${TARGETPLATFORM}"; \
+    sudo ${CURL} --create-dirs -o "/usr/local/bin/docker-compose" "https://github.com/docker/compose-switch/releases/download/${version}/docker-compose-linux-${TARGETPLATFORM}"; \
     sudo chmod +x /usr/local/bin/docker-compose; \
     ## dind \
     # set up subuid/subgid so that "--userns-remap=default" works out-of-the-box \
