@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 FROM buildpack-deps:focal AS base
-
+ARG TARGETPLATFORM
 # set bash as the default interpreter for the build with:
 # -e: exits on error, so we can use colon as line separator
 # -u: throw error on variable unset
