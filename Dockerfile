@@ -74,7 +74,7 @@ ENV AGENT_WORKDIR="${HOME}/agent" \
 
 # create non-root user
 RUN group="${NON_ROOT_USER}"; \
-    export JAVA_HOME="/usr/lib/jvm/temurin-11-jdk-${TARGETARCH}"; \
+    export JAVA_HOME="/usr/lib/jvm/temurin-11-jdk-${TARGETPLATFORM}"; \
     uid="1000"; \
     gid="${uid}"; \
     groupadd -g "${gid}" "${group}"; \
@@ -107,13 +107,13 @@ ARG S6_OVERLAY_VERSION="v3.1.3.0"
 RUN wget "https://github.com/just-containers/s6-overlay/releases/download/${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" -O "/tmp/s6-overlay-noarch.tar.xz" && \
     tar -C / -Jxpf "/tmp/s6-overlay-noarch.tar.xz" && \
     rm -f "/tmp/s6-overlay-noarch.tar.xz"
-RUN [ "${TARGETARCH}" == "arm64" ] && FILE="s6-overlay-aarch64.tar.xz" || FILE="s6-overlay-x86_64.tar.xz"; \
+RUN [ "${TARGETPLATFORM}" == "arm64" ] && FILE="s6-overlay-aarch64.tar.xz" || FILE="s6-overlay-x86_64.tar.xz"; \
     wget "https://github.com/just-containers/s6-overlay/releases/download/${S6_OVERLAY_VERSION}/${FILE}" -O "/tmp/${FILE}" && \
     tar -C / -Jxpf "/tmp/${FILE}" && \
     rm -f "/tmp/${FILE}"
 
 RUN \
-    export JAVA_HOME="/usr/lib/jvm/temurin-11-jdk-${TARGETARCH}"; \
+    export JAVA_HOME="/usr/lib/jvm/temurin-11-jdk-${TARGETPLATFORM}"; \
     # ensure jenkins-agent directory exists \
     mkdir -p "${AGENT_WORKDIR}"; \
     ## apt \
@@ -203,7 +203,7 @@ RUN \
     sudo usermod -aG docker "${NON_ROOT_USER}"; \
     ## setup docker-switch (docker-compose v1 compatibility) \
     version=$(basename "$(${CURL} -o /dev/null -w "%{url_effective}" https://github.com/docker/compose-switch/releases/latest)"); \
-    sudo ${CURL} --create-dirs -o "/usr/local/bin/docker-compose" "https://github.com/docker/compose-switch/releases/download/${version}/docker-compose-$(uname -s)-${TARGETARCH}"; \
+    sudo ${CURL} --create-dirs -o "/usr/local/bin/docker-compose" "https://github.com/docker/compose-switch/releases/download/${version}/docker-compose-$(uname -s)-${TARGETPLATFORM}"; \
     sudo chmod +x /usr/local/bin/docker-compose; \
     ## dind \
     # set up subuid/subgid so that "--userns-remap=default" works out-of-the-box \
@@ -251,7 +251,7 @@ RUN \
     ## miscellaneous \
     # install kind \
     version=$(basename "$(${CURL} -o /dev/null -w "%{url_effective}" https://github.com/kubernetes-sigs/kind/releases/latest)"); \
-    sudo ${CURL} -o /usr/local/bin/kind "https://github.com/kubernetes-sigs/kind/releases/download/${version}/kind-$(uname)-${TARGETARCH}"; \
+    sudo ${CURL} -o /usr/local/bin/kind "https://github.com/kubernetes-sigs/kind/releases/download/${version}/kind-$(uname)-${TARGETPLATFORM}"; \
     sudo chmod +x /usr/local/bin/kind; \
     # install hadolint \
     version=$(basename "$(${CURL} -o /dev/null -w "%{url_effective}" https://github.com/hadolint/hadolint/releases/latest)"); \
@@ -267,7 +267,7 @@ RUN \
     # fix sshd not starting \
     sudo mkdir -p /run/sshd; \
     # install fixuid \
-    curl -fsSL https://github.com/boxboat/fixuid/releases/download/v0.5.1/fixuid-0.5.1-linux-${TARGETARCH}.tar.gz | sudo tar -C /usr/local/bin -xzf -; \
+    curl -fsSL https://github.com/boxboat/fixuid/releases/download/v0.5.1/fixuid-0.5.1-linux-${TARGETPLATFORM}.tar.gz | sudo tar -C /usr/local/bin -xzf -; \
     sudo chown root:root /usr/local/bin/fixuid;\
     sudo chmod 4755 /usr/local/bin/fixuid; \
     sudo mkdir -p /etc/fixuid; \
