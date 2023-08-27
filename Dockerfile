@@ -105,6 +105,14 @@ WORKDIR "${AGENT_WORKDIR}"
 
 VOLUME "${AGENT_WORKDIR}"
 
+# install efs-utils - https://github.com/aws/efs-utils
+RUN sudo apt-get update && \
+    sudo apt-get -y install git nfs-common awscli && \
+    git clone https://github.com/aws/efs-utils && \
+    cd efs-utils && \
+    ./build-deb.sh && \
+    sudo apt-get -y install ./build/amazon-efs-utils*deb
+
 RUN \
     export JAVA_HOME="/usr/lib/jvm/temurin-11-jdk-${TARGETARCH}"; \
     # ensure jenkins-agent directory exists \
