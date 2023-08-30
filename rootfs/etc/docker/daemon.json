@@ -1,5 +1,5 @@
 {
-    "data-root": "/home/jenkins/agent/docker",
+    "data-root": "/mnt/efs",
     "features": {
         "buildkit": true
     },
