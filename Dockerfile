@@ -15,6 +15,7 @@ FROM base AS init_as_root
 # Install shc
 RUN apt-get update; \
     apt-get install -y shc; \
+    
     rm -rf /var/lib/apt/lists/*
 
 COPY init_as_root.sh /
@@ -157,6 +158,7 @@ RUN \
     ${SUDO_APT_GET_INSTALL} \
         git \
         git-lfs \
+        gnutls-bin \
         tree \
         jq \
         yq \
