@@ -108,7 +108,7 @@ VOLUME "${AGENT_WORKDIR}"
 
 # install efs-utils - https://github.com/aws/efs-utils
 RUN sudo apt-get update && \
-    sudo apt-get -y install git nfs-common awscli && \
+    sudo apt-get -y install git nfs-common awscli binutils rustc cargo pkg-config libssl-dev && \
     git clone https://github.com/aws/efs-utils && \
     cd efs-utils && \
     ./build-deb.sh && \
