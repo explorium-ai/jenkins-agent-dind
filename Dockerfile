@@ -117,6 +117,14 @@ COPY --from=jenkins-agent-dind-rootfs / /
 RUN --mount=type=bind,source=jenkins-agent-dind/scripts/prepare_image.sh,target=/prepare_image.sh \
     /prepare_image.sh
 
+# install efs-utils - https://github.com/aws/efs-utils
+RUN sudo apt-get update && \
+    sudo apt-get -y install binutils rustc cargo pkg-config libssl-dev awscli nfs-common && \
+    git clone https://github.com/aws/efs-utils && \
+    cd efs-utils && \
+    ./build-deb.sh && \
+    sudo apt-get -y install ./build/amazon-efs-utils*deb \
+
 USER "${USER}"
 
 WORKDIR "${AGENT_WORKDIR}"
