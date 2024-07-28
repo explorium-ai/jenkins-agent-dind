@@ -203,6 +203,7 @@ pipeline {
 }
 ```
 
+
 ##### Using as a Jenkinsfile docker agent
 
 ```groovy
