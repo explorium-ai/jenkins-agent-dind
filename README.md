@@ -13,4 +13,3 @@ A multi-purpose Docker on Docker or Docker in Docker image to be used as a Devco
 A Docker in Docker image to provide fully ephemeral Jenkins agents.
 
 [![Docker Image Size](https://ghcr-badge.egpl.dev/felipecrs/jenkins-agent-dind/size)](https://github.com/felipecrs/docker-images/pkgs/container/jenkins-agent-dind)
-
