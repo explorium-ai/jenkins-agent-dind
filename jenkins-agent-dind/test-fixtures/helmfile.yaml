@@ -1,0 +1,11 @@
+helmDefaults:
+  wait: true
+  waitForJobs: true
+
+helmBinary: ./werf_as_helm.sh
+
+releases:
+  - name: jenkins
+    chart: ./jenkins/
+    values:
+      - values.yaml.gotmpl

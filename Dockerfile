@@ -1,283 +1,136 @@
-# syntax=docker/dockerfile:1
-FROM buildpack-deps:focal AS base
-ARG TARGETARCH
-ARG TARGETARCH
-# set bash as the default interpreter for the build with:
-# -e: exits on error, so we can use colon as line separator
-# -u: throw error on variable unset
-# -o pipefail: exits on first command failed in pipe
+# renovate: datasource=github-releases depName=jenkinsci/docker-agent versioning=loose
+ARG JENKINS_AGENT_VERSION="3206.vb_15dcf73f6a_9-7"
+
+
+FROM ubuntu:noble-20240605 AS ubuntu
+
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 
-
 # Build the init_as_root
-FROM base AS init_as_root
+FROM ubuntu AS init-as-root
 
-# Install shc
+# hadolint ignore=DL3008
 RUN apt-get update; \
-    apt-get install -y shc; \
-    
+    apt-get install -y --no-install-recommends shc build-essential; \
     rm -rf /var/lib/apt/lists/*
 
-COPY init_as_root.sh /
-RUN shc -S -r -f /init_as_root.sh -o /init_as_root; \
+RUN --mount=type=bind,source=devcontainer/scripts/init_as_root.sh,target=/init_as_root.sh \
+    shc -S -r -f /init_as_root.sh -o /init_as_root; \
     chown root:root /init_as_root; \
     chmod 4755 /init_as_root
 
 
-# Build skopeo from source because of https://github.com/containers/skopeo/issues/1648
-FROM golang:1.18 AS skopeo
+FROM scratch AS devcontainer-rootfs
 
-WORKDIR /usr/src/skopeo
-
-ARG SKOPEO_VERSION="1.8.0"
-RUN curl -fsSL "https://github.com/containers/skopeo/archive/v${SKOPEO_VERSION}.tar.gz" \
-  | tar -xzf - --strip-components=1
-
-RUN CGO_ENABLED=0 DISABLE_DOCS=1 make BUILDTAGS=containers_image_openpgp GO_DYN_FLAGS=
-
-RUN ./bin/skopeo --version
+COPY --from=init-as-root /init_as_root /
+COPY devcontainer/rootfs /
 
 
-FROM scratch AS rootfs
+FROM ubuntu AS devcontainer-base
 
-COPY --from=init_as_root /init_as_root /
-COPY rootfs /
-COPY --from=skopeo /usr/src/skopeo/bin/skopeo /usr/local/bin/
-COPY --from=skopeo /usr/src/skopeo/default-policy.json /etc/containers/policy.json
+## default locale, encoding, and timezone
+ENV LANG="en_US.UTF-8"
+ENV LANGUAGE="en_US:en"
+ENV LC_ALL="en_US.UTF-8"
+ENV TZ="Etc/UTC"
+## s6-overlay
+# Fails the container if any service fails to start
+ENV S6_BEHAVIOUR_IF_STAGE2_FAILS="2"
+# Waits for all services to start before running CMD
+ENV S6_CMD_WAIT_FOR_SERVICES="1"
+# Honors the timeout-up for each service
+ENV S6_CMD_WAIT_FOR_SERVICES_MAXTIME="0"
+# Honors container's environment variables on CMD
+ENV S6_KEEP_ENV="1"
+# Applies services conditions to decide which services should start
+ENV S6_STAGE2_HOOK="/apply_services_conditions.sh"
 
+RUN --mount=type=bind,source=devcontainer/scripts/prepare_image.sh,target=/prepare_image.sh \
+    /prepare_image.sh
 
-FROM base
+COPY --from=devcontainer-rootfs / /
 
-ENV NON_ROOT_USER=jenkins
-ARG HOME="/home/${NON_ROOT_USER}"
-
-# build helpers
-ARG DEBIANFRONTEND="noninteractive"
-ARG APT_GET="apt-get"
-ARG APT_GET_INSTALL="${APT_GET} install -yq --no-install-recommends"
-ARG SUDO_APT_GET="sudo ${APT_GET}"
-ARG SUDO_APT_GET_INSTALL="sudo DEBIANFRONTEND=noninteractive ${APT_GET_INSTALL}"
-ARG CLEAN_APT="rm -rf /var/lib/apt/lists/*"
-ARG SUDO_CLEAN_APT="sudo ${CLEAN_APT}"
-ARG CURL="curl -fsSL"
-ARG NPM_PREFIX="${HOME}/.npm"
-ENV AGENT_WORKDIR="${HOME}/agent" \
-    CI=true \
-    PATH="${NPM_PREFIX}/bin:${HOME}/.local/bin:${PATH}" \
-    # JAVA_HOME="/usr/lib/jvm/temurin-11-jdk-amd64" \
-    # locale and encoding \
-    LANG="en_US.UTF-8" \
-    LANGUAGE="en_US:en" \
-    LC_ALL="en_US.UTF-8" \
-    ## Entrypoint related \
-    # Fails if cont-init and fix-attrs fails \
-    S6_BEHAVIOUR_IF_STAGE2_FAILS=2 \
-    # Wait for dind before running CMD \
-    S6_CMD_WAIT_FOR_SERVICES=1
-
-# create non-root user
-RUN group="${NON_ROOT_USER}"; \
-    export JAVA_HOME="/usr/lib/jvm/temurin-11-jdk-${TARGETARCH}"; \
-    uid="1000"; \
-    gid="${uid}"; \
-    groupadd -g "${gid}" "${group}"; \
-    useradd -l -c "Jenkins user" -d "${HOME}" -u "${uid}" -g "${gid}" -m "${NON_ROOT_USER}" -s /bin/bash -p ""; \
-    # install sudo and locales\
-    ${APT_GET} update; \
-    ${APT_GET_INSTALL} \
-        sudo \
-        locales; \
-    # clean apt cache \
-    ${CLEAN_APT}; \
-    # setup locale \
-    sudo sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen; \
-    sudo locale-gen; \
-    # setup sudo \
-    usermod -aG sudo "${NON_ROOT_USER}"; \
-    echo "${NON_ROOT_USER}  ALL=(ALL) NOPASSWD:ALL" | tee "/etc/sudoers.d/${NON_ROOT_USER}"; \
-    # dismiss sudo welcome message \
-    sudo -u "${NON_ROOT_USER}" sudo true
+ENTRYPOINT [ "/entrypoint.sh" ]
+CMD []
 
 
-# use non-root user with sudo when needed
-USER "${NON_ROOT_USER}:${NON_ROOT_USER}"
+FROM devcontainer-base AS devcontainer-user
 
-WORKDIR "${AGENT_WORKDIR}"
+ARG USER="devcontainer"
+ARG USER_ID="1000"
+# Setting these as environment variables are very useful since they will still be present
+# when running commands in the container with docker exec. For the eventual case where the
+# image is ran as root, these vars will be corrected only when using docker run, but the
+# drawback still pays off as running this image as root is a corner case.
+ENV USER="${USER}"
+ENV HOME="/home/${USER}"
+ENV PATH="${HOME}/.volta/bin:${HOME}/.local/bin:${PATH}"
 
-VOLUME "${AGENT_WORKDIR}"
+RUN --mount=type=bind,source=devcontainer/scripts/prepare_user.sh,target=/prepare_user.sh \
+    /prepare_user.sh
+
+
+FROM devcontainer-user AS devcontainer
+
+USER "${USER}"
+
+WORKDIR "${HOME}"
+
+VOLUME [ "/var/lib/docker" ]
+
+
+FROM devcontainer-base AS jenkins-agent-dind-user
+
+ARG USER="jenkins"
+ARG USER_ID="1000"
+# Setting these as environment variables are very useful since they will still be present
+# when running commands in the container with docker exec. For the eventual case where the
+# image is ran as root, these vars will be corrected only when using docker run, but the
+# drawback still pays off as running this image as root is a corner case.
+ENV USER="${USER}"
+ENV HOME="/home/${USER}"
+ENV PATH="${HOME}/.local/bin:${PATH}"
+
+RUN --mount=type=bind,source=devcontainer/scripts/prepare_user.sh,target=/prepare_user.sh \
+    /prepare_user.sh
+
+
+FROM jenkins/inbound-agent:${JENKINS_AGENT_VERSION}-jdk21 AS jenkins-agent
+
+
+FROM scratch AS jenkins-agent-dind-rootfs
+
+COPY --from=jenkins-agent /usr/local/bin/jenkins-agent /usr/local/bin/jenkins-slave /usr/local/bin/
+COPY --from=jenkins-agent /usr/share/jenkins /usr/share/jenkins
+COPY --from=jenkins-agent /opt/java/openjdk /opt/java/openjdk
+COPY jenkins-agent-dind/rootfs /
+
+
+FROM jenkins-agent-dind-user AS jenkins-agent-dind
+
+ENV AGENT_WORKDIR="${HOME}/agent"
+# Keep java at the end of the PATH so that users can install their own if they want
+ENV PATH="${PATH}:/opt/java/openjdk/bin"
+
+COPY --from=jenkins-agent-dind-rootfs / /
+
+RUN --mount=type=bind,source=jenkins-agent-dind/scripts/prepare_image.sh,target=/prepare_image.sh \
+    /prepare_image.sh
 
 # install efs-utils - https://github.com/aws/efs-utils
 RUN sudo apt-get update && \
-    sudo apt-get -y install git nfs-common awscli binutils rustc cargo pkg-config libssl-dev && \
+    sudo apt-get -y install binutils rustc cargo pkg-config libssl-dev awscli nfs-common && \
     git clone https://github.com/aws/efs-utils && \
     cd efs-utils && \
     ./build-deb.sh && \
-    sudo apt-get -y install ./build/amazon-efs-utils*deb
+    sudo apt-get -y install ./build/amazon-efs-utils*deb \
 
-RUN \
-    export JAVA_HOME="/usr/lib/jvm/temurin-11-jdk-${TARGETARCH}"; \
-    # ensure jenkins-agent directory exists \
-    mkdir -p "${AGENT_WORKDIR}"; \
-    ## apt \
-    ${SUDO_APT_GET} update; \
-    # upgrade system \
-    ${SUDO_APT_GET} -yq upgrade; \
-    # install add-apt-repository \
-    ${SUDO_APT_GET_INSTALL} software-properties-common; \
-    ## apt repositories \
-    # adoptium openjdk \
-    ${CURL} https://packages.adoptium.net/artifactory/api/gpg/key/public | sudo apt-key add -; \
-    sudo add-apt-repository --no-update -y "https://packages.adoptium.net/artifactory/deb"; \
-    # kubernetes \
-    ${CURL} https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -; \
-    sudo add-apt-repository --no-update -y "deb https://apt.kubernetes.io/ kubernetes-xenial main"; \
-    # yarn \
-    ${CURL} https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -; \
-    sudo add-apt-repository --no-update -y "deb https://dl.yarnpkg.com/debian/ stable main"; \
-    # jfrog \
-    # ${CURL} https://releases.jfrog.io/artifactory/api/gpg/key/public | sudo apt-key add -; \
-    # sudo add-apt-repository --no-update -y "deb https://releases.jfrog.io/artifactory/jfrog-debs xenial contrib"; \
-    # git \
-    sudo add-apt-repository --no-update -y ppa:git-core/ppa; \
-    # yq \
-    sudo add-apt-repository --no-update -y ppa:rmescandon/yq; \
-    # git-lfs \
-    ${CURL} https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo -E bash -; \
-    # nodejs \
-    ${CURL} https://deb.nodesource.com/setup_lts.x | sudo -E bash -; \
-    # docker \
-    sudo install -m 0755 -d /etc/apt/keyrings; \
-    ${CURL} https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg; \
-    sudo chmod a+r /etc/apt/keyrings/docker.gpg; \
-    echo \
-        "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-        "$(. /etc/os-release && echo "${VERSION_CODENAME}")" stable" | \
-        sudo tee /etc/apt/sources.list.d/docker.list; \
-    # install apt packages \
-    ${SUDO_APT_GET} update; \
-    ${SUDO_APT_GET_INSTALL} \
-        git \
-        git-lfs \
-        gnutls-bin \
-        tree \
-        jq \
-        yq \
-        parallel \
-        rsync \
-        sshpass \
-        python3-pip \
-        temurin-11-jdk \
-        nodejs \
-        yarn \
-        kubectl \
-        # jfrog-cli \
-        # jfrog-cli-v2-jf \
-        shellcheck \
-        maven \
-        ant \
-        ant-contrib \
-        zip \
-        unzip \
-        time \
-        # required for docker in docker \
-        iptables \
-        xz-utils \
-        btrfs-progs \
-        # network \
-        net-tools \
-        iputils-ping \
-        traceroute \
-        dnsutils \
-        netcat \
-        openssh-server \
-        # docker pre-requisites \
-        ca-certificates \
-        curl \
-        gnupg \
-        # docker \
-        docker-ce \
-        docker-ce-cli \
-        containerd.io \
-        docker-buildx-plugin \
-        docker-compose-plugin; \
-    ${SUDO_APT_GET} autoremove -yq; \
-    ${SUDO_CLEAN_APT}; \
-    # setup docker \
-    sudo usermod -aG docker "${NON_ROOT_USER}"; \
-    ## setup docker-switch (docker-compose v1 compatibility) \
-    version=$(basename "$(${CURL} -o /dev/null -w "%{url_effective}" https://github.com/docker/compose-switch/releases/latest)"); \
-    sudo ${CURL} --create-dirs -o "/usr/local/bin/docker-compose" "https://github.com/docker/compose-switch/releases/download/${version}/docker-compose-$(uname -s)-${TARGETARCH}"; \
-    sudo chmod +x /usr/local/bin/docker-compose; \
-    ## dind \
-    # set up subuid/subgid so that "--userns-remap=default" works out-of-the-box \
-    sudo addgroup --system dockremap; \
-    sudo adduser --system --ingroup dockremap dockremap; \
-    echo 'dockremap:165536:65536' | sudo tee -a /etc/subuid; \
-    echo 'dockremap:165536:65536' | sudo tee -a /etc/subgid; \
-    # install dind hack \
-    # https://github.com/moby/moby/commits/master/hack/dind \
-    version="1f32e3c95d72a29b3eaacba156ed675dba976cb5"; \
-    sudo ${CURL} -o /usr/local/bin/dind "https://raw.githubusercontent.com/moby/moby/${version}/hack/dind"; \
-    sudo chmod +x /usr/local/bin/dind; \
-    # install jenkins-agent \
-    base_url="https://repo.jenkins-ci.org/public/org/jenkins-ci/main/remoting"; \
-    version=$(curl -fsS ${base_url}/maven-metadata.xml | grep "<latest>.*</latest>" | sed -e "s#\(.*\)\(<latest>\)\(.*\)\(</latest>\)\(.*\)#\3#g"); \
-    sudo curl --create-dirs -fsSLo /usr/share/jenkins/agent.jar "${base_url}/${version}/remoting-${version}.jar"; \
-    sudo chmod 755 /usr/share/jenkins; \
-    sudo chmod +x /usr/share/jenkins/agent.jar; \
-    sudo ln -sf /usr/share/jenkins/agent.jar /usr/share/jenkins/slave.jar; \
-    # install jenkins-agent wrapper from inbound-agent \
-    version=$(basename "$(${CURL} -o /dev/null -w "%{url_effective}" https://github.com/jenkinsci/docker-inbound-agent/releases/latest)"); \
-    sudo ${CURL} -o /usr/local/bin/jenkins-agent "https://raw.githubusercontent.com/jenkinsci/docker-inbound-agent/${version}/jenkins-agent"; \
-    sudo chmod +x /usr/local/bin/jenkins-agent; \
-    sudo ln -sf /usr/local/bin/jenkins-agent /usr/local/bin/jenkins-slave; \
-    ## pip \
-    # setup python and pip aliases \
-    sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 1; \
-    sudo update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1; \
-    # upgrade pip \
-    sudo pip install --no-cache-dir --upgrade pip; \
-    # install pip packages \
-    sudo pip install --no-cache-dir ansible; \
-    ## npm \
-    # upgrade npm \
-    sudo npm install -g npm@latest; \
-    # allow npm --global to run as non-root \
-    mkdir "${NPM_PREFIX}"; \
-    npm config set prefix "${NPM_PREFIX}"; \
-    # install npm packages \
-    sudo npm install --global \
-        semver \
-        bats; \
-    # clean npm cache \
-    sudo npm cache clean --force; \
-    ## miscellaneous \
-    # install kind \
-    version=$(basename "$(${CURL} -o /dev/null -w "%{url_effective}" https://github.com/kubernetes-sigs/kind/releases/latest)"); \
-    sudo ${CURL} -o /usr/local/bin/kind "https://github.com/kubernetes-sigs/kind/releases/download/${version}/kind-$(uname)-${TARGETARCH}"; \
-    sudo chmod +x /usr/local/bin/kind; \
-    # install hadolint \
-    version=$(basename "$(${CURL} -o /dev/null -w "%{url_effective}" https://github.com/hadolint/hadolint/releases/latest)"); \
-    sudo ${CURL} -o /usr/local/bin/hadolint "https://github.com/hadolint/hadolint/releases/download/${version}/hadolint-Linux-x86_64"; \
-    sudo chmod +x /usr/local/bin/hadolint; \
-    # install helm 3 \
-    ${CURL} https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | sudo -E bash -; \
-    # install s6-overlay \
-    [ "${TARGETARCH}" == "arm64" ] && FILE="s6-overlay-aarch64-installer" || FILE="s6-overlay-x86-installer"; \
-    ${CURL} -o /tmp/s6-overlay-installer https://github.com/just-containers/s6-overlay/releases/download/v2.2.0.1/${FILE}; \
-    chmod +x /tmp/s6-overlay-installer; \
-    sudo /tmp/s6-overlay-installer /; \
-    rm -f /tmp/s6-overlay-installer; \
-    # fix sshd not starting \
-    sudo mkdir -p /run/sshd; \
-    # install fixuid \
-    curl -fsSL https://github.com/boxboat/fixuid/releases/download/v0.5.1/fixuid-0.5.1-linux-${TARGETARCH}.tar.gz | sudo tar -C /usr/local/bin -xzf -; \
-    sudo chown root:root /usr/local/bin/fixuid;\
-    sudo chmod 4755 /usr/local/bin/fixuid; \
-    sudo mkdir -p /etc/fixuid; \
-    printf '%s\n' "user: ${NON_ROOT_USER}" "group: ${NON_ROOT_USER}" "paths:" "  - /" "  - ${AGENT_WORKDIR}" | sudo tee /etc/fixuid/config.yml
+USER "${USER}"
 
-COPY --from=rootfs / /
+WORKDIR "${AGENT_WORKDIR}"
 
-ENTRYPOINT [ "/entrypoint.sh" ]
-CMD [ "jenkins-agent" ]
+VOLUME ["${AGENT_WORKDIR}"]
+
+
+# set default stage
+FROM devcontainer

@@ -1,0 +1,70 @@
+// Generate an "unique" port for SSHD
+env.SSHD_PORT = new Random(env.BUILD_TAG.hashCode()).nextInt(23000 - 22000) + 22000
+pipeline {
+    agent any
+    options {
+        ansiColor('xterm')
+    }
+    stages {
+        stage ('prepare') {
+            steps {
+                // docker can only pull from insecure registries at localhost by default
+                sh 'docker run --name socat -d --network=host alpine/socat tcp-listen:15432,reuseaddr,fork tcp:jenkins-agent-dind-test-registry:5000'
+                retry(3) {
+                    sh 'docker pull localhost:15432/jenkins-agent-dind:latest'
+                }
+            }
+            post {
+                failure {
+                    sh 'docker logs socat'
+                }
+            }
+        }
+        stage('parallel') {
+            parallel {
+                stage ('docker') {
+                    steps {
+                        sh 'printenv | sort | tee /dev/stderr | grep -q ^USER='
+                        sh 'docker version'
+                        sh 'IGNORE_FAILURE=false /ssh-command/get.sh'
+                    }
+                }
+                stage ('nested dond') {
+                    agent {
+                        docker {
+                            reuseNode true
+                            image 'localhost:15432/jenkins-agent-dind:latest'
+                            args '--volume=/ssh-command:/ssh-command --volume=/var/run/docker.sock:/var/run/docker.sock --group-add=docker --network=host'
+                        }
+                    }
+                    steps {
+                        sh 'printenv | sort | tee /dev/stderr | grep -q ^USER='
+                        sh 'docker version'
+                        sh 'IGNORE_FAILURE=false /ssh-command/get.sh'
+                    }
+                }
+                stage ('nested dind') {
+                    agent {
+                        docker {
+                            reuseNode true
+                            image 'localhost:15432/jenkins-agent-dind:latest'
+                            args "--privileged --group-add=docker --env=SSHD_ENABLED=true --publish=^${env.SSHD_PORT}:22 --env=DOMAIN=example.com"
+                        }
+                    }
+                    steps {
+                        sh 'printenv | sort | tee /dev/stderr | grep -q ^USER='
+                        retry(3) {
+                            sh 'docker version'
+                        }
+                        sh 'IGNORE_FAILURE=false /ssh-command/get.sh'
+                    }
+                }
+            }
+        }
+    }
+    // post {
+    //     failure {
+    //         sh 'sleep 5m'
+    //     }
+    // }
+}
