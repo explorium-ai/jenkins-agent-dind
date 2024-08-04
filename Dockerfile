@@ -1,7 +1,6 @@
 # renovate: datasource=github-releases depName=jenkinsci/docker-agent versioning=loose
 ARG JENKINS_AGENT_VERSION="3206.vb_15dcf73f6a_9-7"
 
-
 FROM ubuntu:noble-20240605 AS ubuntu
 
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
@@ -19,12 +18,10 @@ RUN --mount=type=bind,source=devcontainer/scripts/init_as_root.sh,target=/init_a
     chown root:root /init_as_root; \
     chmod 4755 /init_as_root
 
-
 FROM scratch AS devcontainer-rootfs
 
 COPY --from=init-as-root /init_as_root /
 COPY devcontainer/rootfs /
-
 
 FROM ubuntu AS devcontainer-base
 
@@ -53,7 +50,6 @@ COPY --from=devcontainer-rootfs / /
 ENTRYPOINT [ "/entrypoint.sh" ]
 CMD []
 
-
 FROM devcontainer-base AS devcontainer-user
 
 ARG USER="devcontainer"
@@ -69,7 +65,6 @@ ENV PATH="${HOME}/.volta/bin:${HOME}/.local/bin:${PATH}"
 RUN --mount=type=bind,source=devcontainer/scripts/prepare_user.sh,target=/prepare_user.sh \
     /prepare_user.sh
 
-
 FROM devcontainer-user AS devcontainer
 
 USER "${USER}"
@@ -77,7 +72,6 @@ USER "${USER}"
 WORKDIR "${HOME}"
 
 VOLUME [ "/var/lib/docker" ]
-
 
 FROM devcontainer-base AS jenkins-agent-dind-user
 
@@ -94,9 +88,7 @@ ENV PATH="${HOME}/.local/bin:${PATH}"
 RUN --mount=type=bind,source=devcontainer/scripts/prepare_user.sh,target=/prepare_user.sh \
     /prepare_user.sh
 
-
 FROM jenkins/inbound-agent:${JENKINS_AGENT_VERSION}-jdk21 AS jenkins-agent
-
 
 FROM scratch AS jenkins-agent-dind-rootfs
 
@@ -104,7 +96,6 @@ COPY --from=jenkins-agent /usr/local/bin/jenkins-agent /usr/local/bin/jenkins-sl
 COPY --from=jenkins-agent /usr/share/jenkins /usr/share/jenkins
 COPY --from=jenkins-agent /opt/java/openjdk /opt/java/openjdk
 COPY jenkins-agent-dind/rootfs /
-
 
 FROM jenkins-agent-dind-user AS jenkins-agent-dind
 
@@ -119,7 +110,8 @@ RUN --mount=type=bind,source=jenkins-agent-dind/scripts/prepare_image.sh,target=
 
 # Ops changes - install efs-utils - https://github.com/aws/efs-utils
 RUN sudo apt-get update && \
-    sudo apt-get -y install binutils rustc cargo pkg-config libssl-dev awscli nfs-common && \
+    sudo apt-get -y install binutils rustc cargo pkg-config libssl-dev python3-pip nfs-common && \
+    pip3 install awscli && \
     git clone https://github.com/aws/efs-utils && \
     cd efs-utils && \
     ./build-deb.sh && \
@@ -130,7 +122,6 @@ USER "${USER}"
 WORKDIR "${AGENT_WORKDIR}"
 
 VOLUME ["${AGENT_WORKDIR}"]
-
 
 # set default stage
 # FROM devcontainer
