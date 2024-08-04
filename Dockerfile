@@ -123,7 +123,7 @@ RUN sudo apt-get update && \
     git clone https://github.com/aws/efs-utils && \
     cd efs-utils && \
     ./build-deb.sh && \
-    sudo apt-get -y install ./build/amazon-efs-utils*deb \
+    sudo apt-get -y install ./build/amazon-efs-utils*deb
 
 USER "${USER}"
 
@@ -133,4 +133,5 @@ VOLUME ["${AGENT_WORKDIR}"]
 
 
 # set default stage
-FROM devcontainer
+# FROM devcontainer
+FROM jenkins-agent-dind
