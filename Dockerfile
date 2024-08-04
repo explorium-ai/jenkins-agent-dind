@@ -110,8 +110,10 @@ RUN --mount=type=bind,source=jenkins-agent-dind/scripts/prepare_image.sh,target=
 
 # Ops changes - install efs-utils - https://github.com/aws/efs-utils
 RUN sudo apt-get update && \
-    sudo apt-get -y install binutils rustc cargo pkg-config libssl-dev python3-pip nfs-common && \
-    pip3 install awscli && \
+    sudo apt-get -y install binutils rustc cargo pkg-config libssl-dev curl unzip nfs-common && \
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip && \
+    sudo ./aws/install && \
     git clone https://github.com/aws/efs-utils && \
     cd efs-utils && \
     ./build-deb.sh && \
