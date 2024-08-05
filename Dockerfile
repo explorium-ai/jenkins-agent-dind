@@ -1,5 +1,5 @@
 # renovate: datasource=github-releases depName=jenkinsci/docker-agent versioning=loose
-ARG JENKINS_AGENT_VERSION="3206.vb_15dcf73f6a_9-7"
+ARG JENKINS_AGENT_VERSION="3206.vb_15dcf73f6a_9-10"
 
 FROM ubuntu:noble-20240605 AS ubuntu
 
@@ -88,7 +88,7 @@ ENV PATH="${HOME}/.local/bin:${PATH}"
 RUN --mount=type=bind,source=devcontainer/scripts/prepare_user.sh,target=/prepare_user.sh \
     /prepare_user.sh
 
-FROM jenkins/inbound-agent:${JENKINS_AGENT_VERSION}-jdk21 AS jenkins-agent
+FROM jenkins/inbound-agent:${JENKINS_AGENT_VERSION}-jdk11 AS jenkins-agent
 
 FROM scratch AS jenkins-agent-dind-rootfs
 
