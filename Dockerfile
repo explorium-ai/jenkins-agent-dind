@@ -114,7 +114,7 @@ RUN sudo apt-get update && \
     curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
     unzip awscliv2.zip && \
     sudo ./aws/install && \
-    git clone https://github.com/aws/efs-utils && \
+    git clone --branch v1.35.0 https://github.com/aws/efs-utils && \
     cd efs-utils && \
     ./build-deb.sh && \
     sudo apt-get -y install ./build/amazon-efs-utils*deb
