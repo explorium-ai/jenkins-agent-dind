@@ -15,41 +15,11 @@ concurrency:
 
 jobs:
   build-amd64:
-<<<<<<< HEAD
     runs-on: ubuntu-latest-8-cores #ubuntu-latest
-=======
-    runs-on: ubuntu-latest
->>>>>>> upstream/master
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-<<<<<<< HEAD
-
-      - name: Build to export cache
-=======
-
-      - name: Build to export cache
-        uses: docker/bake-action@v5
-        with:
-          set: |
-            devcontainer.cache-from=type=gha,scope=devcontainer-amd64
-            jenkins-agent-dind.cache-from=type=gha,scope=jenkins-agent-dind-amd64
-            devcontainer.cache-to=type=gha,scope=devcontainer-amd64,mode=max
-            jenkins-agent-dind.cache-to=type=gha,scope=jenkins-agent-dind-amd64,mode=max
-
-  build-arm64:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -58,36 +28,8 @@ jobs:
         uses: docker/bake-action@v5
         with:
           set: |
-            devcontainer.platform=linux/arm64
-            jenkins-agent-dind.platform=linux/arm64
-            devcontainer.cache-from=type=gha,scope=devcontainer-arm64
-            jenkins-agent-dind.cache-from=type=gha,scope=jenkins-agent-dind-arm64
-            devcontainer.cache-to=type=gha,scope=devcontainer-arm64,mode=max
-            jenkins-agent-dind.cache-to=type=gha,scope=jenkins-agent-dind-arm64,mode=max
-
-  test:
-    needs: build-amd64
-
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          # Needed for jenkins-agent-dind/test.sh
-          driver-opts: network=host
-
-      - name: Build to import cache
->>>>>>> upstream/master
-        uses: docker/bake-action@v5
-        with:
-          set: |
             devcontainer.cache-from=type=gha,scope=devcontainer-amd64
             jenkins-agent-dind.cache-from=type=gha,scope=jenkins-agent-dind-amd64
-<<<<<<< HEAD
             devcontainer.cache-to=type=gha,scope=devcontainer-amd64,mode=max
             jenkins-agent-dind.cache-to=type=gha,scope=jenkins-agent-dind-amd64,mode=max
 
@@ -147,26 +89,12 @@ jobs:
     needs:
       - build-amd64
     #  - test
-=======
-          load: true
-
-      - name: Test
-        uses: devcontainers/ci@v0.3
-        with:
-          runCmd: ./test.sh
-
-  push:
-    needs:
-      - build-arm64
-      - test
->>>>>>> upstream/master
 
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-<<<<<<< HEAD
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -174,15 +102,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-=======
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
->>>>>>> upstream/master
       - name: Docker meta (devcontainer)
         id: docker-meta-devcontainer
         uses: docker/metadata-action@v5
@@ -248,7 +167,6 @@ jobs:
             ${{ steps.docker-meta-jenkins-agent-dind.outputs.bake-file }}
             ${{ steps.docker-meta-jenkins-agent-dind.outputs.bake-file-annotations }}
           set: |
-<<<<<<< HEAD
             devcontainer.platform=linux/amd64
             jenkins-agent-dind.platform=linux/amd64
             devcontainer.cache-from=type=gha,scope=devcontainer-amd64
@@ -263,12 +181,3 @@ jobs:
 #          jenkins-agent-dind.cache-from=type=gha,scope=jenkins-agent-dind-amd64
 #          jenkins-agent-dind.cache-from=type=gha,scope=jenkins-agent-dind-arm64
 #        push: true
-=======
-            devcontainer.platform=linux/amd64,linux/arm64
-            jenkins-agent-dind.platform=linux/amd64,linux/arm64
-            devcontainer.cache-from=type=gha,scope=devcontainer-amd64
-            devcontainer.cache-from=type=gha,scope=devcontainer-arm64
-            jenkins-agent-dind.cache-from=type=gha,scope=jenkins-agent-dind-amd64
-            jenkins-agent-dind.cache-from=type=gha,scope=jenkins-agent-dind-arm64
-          push: true
->>>>>>> upstream/master
