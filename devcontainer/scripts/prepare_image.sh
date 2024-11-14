@@ -56,7 +56,7 @@ echo "deb [arch=${DPKG_ARCH} signed-by=/etc/apt/keyrings/docker.gpg] https://dow
 ${APT_GET} update
 
 # renovate: datasource=github-releases depName=docker packageName=moby/moby
-DOCKER_VERSION="27.1.1"
+DOCKER_VERSION="27.3.1"
 
 packages=(
     build-essential
@@ -131,9 +131,9 @@ ${CURL} "https://github.com/kadwanev/retry/releases/download/${RETRY_VERSION}/re
     tar -C /usr/local/bin -xzf - retry
 
 # install pkgx
-# renovate: datasource=github-releases depName=felipecrs/pkgx versioning=loose
-PKGX_VERSION="1.2.0-felipecrs.2"
-${CURL} "https://github.com/felipecrs/pkgx/releases/download/v${PKGX_VERSION}/pkgx-${PKGX_VERSION}+linux+${UNAME_ARCH//_/-}.tar.xz" |
+# renovate: datasource=github-releases depName=pkgxdev/pkgx
+PKGX_VERSION="1.2.2"
+${CURL} "https://github.com/pkgxdev/pkgx/releases/download/v${PKGX_VERSION}/pkgx-${PKGX_VERSION}+linux+${UNAME_ARCH//_/-}.tar.xz" |
     tar -C /usr/local/bin -xJf - pkgx
 
 # install s6-overlay
@@ -149,7 +149,7 @@ mkdir -p /run/sshd
 
 # install docker-on-docker-shim
 # renovate: datasource=github-releases depName=felipecrs/docker-on-docker-shim
-DOND_SHIM_VERSION="0.6.1"
+DOND_SHIM_VERSION="0.7.0"
 ${CURL} "https://github.com/felipecrs/docker-on-docker-shim/raw/v${DOND_SHIM_VERSION}/dond" \
     -o /usr/local/bin/dond
 chmod +x /usr/local/bin/dond

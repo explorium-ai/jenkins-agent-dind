@@ -25,7 +25,7 @@ usermod -aG docker "${USER}"
 
 # install fixdockergid
 # renovate: datasource=github-releases depName=felipecrs/fixdockergid
-FIXDOCKERGID_VERSION="0.7.1"
+FIXDOCKERGID_VERSION="0.7.2"
 ${CURL} "https://github.com/felipecrs/fixdockergid/raw/v${FIXDOCKERGID_VERSION}/install.sh" |
     FIXDOCKERGID_VERSION="${FIXDOCKERGID_VERSION}" USERNAME="${USER}" sh -
 
@@ -39,7 +39,7 @@ chown "${USER}:${USER}" "${HOME}/.bashrc"
 
 # install volta stub (will be fully downloaded when it is used for the first time)
 # renovate: datasource=github-releases depName=volta packageName=volta-cli/volta
-VOLTA_VERSION="1.1.1"
+VOLTA_VERSION="2.0.1"
 sudo -u "${USER}" pkgx install "volta.sh@${VOLTA_VERSION}"
 
 # cleanup

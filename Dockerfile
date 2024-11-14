@@ -1,7 +1,8 @@
 # renovate: datasource=github-releases depName=jenkinsci/docker-agent versioning=loose
-ARG JENKINS_AGENT_VERSION="3206.vb_15dcf73f6a_9-10"
+ARG JENKINS_AGENT_VERSION="3206.vb_15dcf73f6a_9-7"
 
-FROM ubuntu:noble-20240605 AS ubuntu
+
+FROM ubuntu:noble-20241011 AS ubuntu
 
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 
@@ -22,6 +23,7 @@ FROM scratch AS devcontainer-rootfs
 
 COPY --from=init-as-root /init_as_root /
 COPY devcontainer/rootfs /
+
 
 FROM ubuntu AS devcontainer-base
 
@@ -83,7 +85,7 @@ ARG USER_ID="1000"
 # drawback still pays off as running this image as root is a corner case.
 ENV USER="${USER}"
 ENV HOME="/home/${USER}"
-ENV PATH="${HOME}/.local/bin:${PATH}"
+ENV PATH="${HOME}/.volta/bin:${HOME}/.local/bin:${PATH}"
 
 RUN --mount=type=bind,source=devcontainer/scripts/prepare_user.sh,target=/prepare_user.sh \
     /prepare_user.sh
